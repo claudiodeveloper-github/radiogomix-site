@@ -1,132 +1,240 @@
-<p align="center">
-  <img src="logo.jpg" alt="Rádio GoMix" width="200px" style="border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
-</p>
+# 📻 Rádio GoMix
 
-<h1 align="center">📻 Rádio GoMix</h1>
+![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.5-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?style=flat-square&logo=pwa&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Java-21-red?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.2.5-brightgreen?style=for-the-badge&logo=springboot" alt="Spring Boot 3.2.5" />
-  <img src="https://img.shields.io/badge/PostgreSQL-Supabase-blue?style=for-the-badge&logo=postgresql" alt="PostgreSQL Supabase" />
-  <img src="https://img.shields.io/badge/PWA-Instal%C3%A1vel-orange?style=for-the-badge" alt="PWA Instalável" />
-  <img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-green?style=for-the-badge" alt="Licença MIT" />
-</p>
-
-<p align="center">
-  Web Rádio Gospel 24h baseada na arquitetura e sincronização matemática <b>Faux-Live</b> · Solução de alta disponibilidade com custo zero de streaming.
-</p>
-
-<p align="center">
-  👉 <b><a href="https://radiogomix.com.br">Ouvir Transmissão Ao Vivo</a></b>
-</p>
+> Uma estação de rádio 24/7 construída sobre uma arquitetura **Faux-Live** que elimina completamente os custos operacionais de streaming tradicional, mantendo a experiência de transmissão contínua para o ouvinte.
 
 ---
 
-## 🎯 O Problema de Engenharia Resolvido
+## O Problema de Engenharia Resolvido
 
-Hospedar uma web rádio tradicional 24 horas ligada exige servidores de streaming dedicados (como Icecast ou Shoutcast) que cobram taxas mensais elevadas por largura de banda e conexões simultâneas de ouvintes. 
+Manter uma rádio online operando ininterruptamente exige, no modelo convencional, um servidor de streaming dedicado (Icecast, Shoutcast ou equivalente) com uma conexão de saída de alta largura de banda proporcional ao número simultâneo de ouvintes. O custo escala linearmente com a audiência: 100 ouvintes simultâneos consomem 100x mais banda que um único ouvinte.
 
-A **Rádio GoMix** elimina esse custo de infraestrutura utilizando o conceito de **Faux-Live** (Transmissão Simulada Direta):
-Em vez de decodificar e transmitir um fluxo contínuo de áudio via servidor, o backend calcula milimetricamente com base no fuso horário qual hino e qual segundo exato da faixa deveria estar tocando agora. O frontend (cliente) consome esse ponteiro via JSON e ajusta o player HTML5 nativo para a posição correta, simulando uma rádio ao vivo com consumo de banda sob demanda.
+O GoMix resolve isso eliminando o servidor de streaming da equação.
 
----
+A premissa central é que uma transmissão de rádio é, em essência, um cronograma determinístico: sabe-se exatamente qual mídia deveria estar tocando em qualquer instante do tempo. Ao persistir esse cronograma no banco de dados e expô-lo via API, o backend consegue responder a qualquer cliente, a qualquer momento, com precisão de segundos: *"Você deveria estar no segundo `X` do arquivo `Y`"*.
 
-## 🏗️ Arquitetura e Fluxo de Dados
-
-A solução adota um modelo desacoplado (Decoupled Architecture), separando a casca visual estática do motor lógico do sistema.
-
-+--------------------------------------------------------+
-|                   CLIENTE (PWA)                        |
-|             (https://radiogomix.com.br)                |
-|                                                        |
-|   - Polling nativo para sincronia temporal             |
-|   - Service Worker (sw.js) otimizado para cache local  |
-|   - MediaSession API para controles em Lock Screen     |
-+---------------------------+----------------------------+
-|
-| HTTP GET /api/radio/no-ar (JSON)
-v
-+--------------------------------------------------------+
-|            BACKEND ENGINE (Spring Boot)                |
-|                                                        |
-|   - RadioController: Endpoint público e Cross-Origin   |
-|   - MidiaController: REST API para gestão e interrupção|
-|   - AutomationService: Daemon agendado de segurança    |
-|   - GradeService: Motor matemático de Timezone         |
-+---------------------------+----------------------------+
-|
-| Spring Data JPA / HikariCP
-v
-+--------------------------------------------------------+
-|              INFRAESTRUTURA DE NUVEM                   |
-|                                                        |
-|   - Supabase: PostgreSQL e Storage de arquivos .mp3    |
-|   - GitHub Pages: Distribuição CDN global do Frontend  |
-+--------------------------------------------------------+
+O cliente então busca o arquivo de áudio diretamente do storage e faz o seek para a posição correta. O backend nunca carrega um único byte de áudio. A largura de banda do servidor é zero, independentemente de quantos ouvintes estiverem conectados.
 
 ---
 
-## ⚙️ Inteligência do Core Backend
+## Arquitetura do Sistema
 
-### 1. Sincronização Matemática Estável (`GradeService.java`)
-Para evitar desvios temporais causados pela diferença de fusos entre servidores em nuvem e o dispositivo do cliente, o sistema centraliza o relógio oficial no fuso horário de Brasília (`America/Sao_Paulo`). O deslocamento do áudio é calculado em segundos e protegido contra estouros de buffer:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLIENTE (PWA)                           │
+│  ┌─────────────┐   ┌──────────────────┐   ┌─────────────────┐  │
+│  │  index.html │   │    sw.js         │   │  MediaSession   │  │
+│  │  (player    │   │  (Service Worker │   │  API            │  │
+│  │   HTML5)    │   │   sem cache de   │   │  (Lock Screen / │  │
+│  │             │   │   mídia pesada)  │   │   CarPlay)      │  │
+│  └──────┬──────┘   └──────────────────┘   └─────────────────┘  │
+│         │ 1. GET /api/grade/now                                  │
+└─────────┼───────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    BACKEND (Spring Boot 3.2.5 / Java 21)        │
+│                                                                 │
+│  ┌──────────────────────────┐   ┌────────────────────────────┐  │
+│  │      GradeService        │   │     AutomationService      │  │
+│  │                          │   │                            │  │
+│  │  Calcula o ponteiro      │   │  Daemon @Scheduled         │  │
+│  │  exato em segundos da    │   │  (fixedDelay = 60s)        │  │
+│  │  mídia atual usando      │   │                            │  │
+│  │  ZonedDateTime (BRT)     │   │  Preenche lacunas de 24h   │  │
+│  │  → Epoch Milliseconds    │   │  com blocos: 3♪ 1V 1J 1P   │  │
+│  └──────────┬───────────────┘   └────────────────────────────┘  │
+│             │ 2. Retorna {url, seekTo}                           │
+│             │                                                    │
+│  ┌──────────┴───────────────┐                                   │
+│  │    Spring Data JPA       │                                   │
+│  │    (PostgreSQL queries)  │                                   │
+│  └──────────┬───────────────┘                                   │
+└─────────────┼───────────────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         SUPABASE                                │
+│                                                                 │
+│   ┌─────────────────────┐      ┌──────────────────────────┐    │
+│   │  PostgreSQL          │      │  Storage (Bucket)        │    │
+│   │  (grade / schedule)  │      │  Arquivos .mp3 públicos  │    │
+│   └─────────────────────┘      └──────────────────────────┘    │
+│                                          ▲                      │
+└──────────────────────────────────────────┼──────────────────────┘
+                                           │ 3. Fetch do .mp3 + seek
+                                           │    (direto pelo cliente)
+                                    ┌──────┴──────┐
+                                    │   CLIENTE   │
+                                    │  (HTML5     │
+                                    │   Audio)    │
+                                    └─────────────┘
+```
 
-
-
+O cliente faz exatamente **duas** operações de rede: uma chamada leve à API para obter os metadados do slot atual, e um fetch direto ao storage para o arquivo de áudio. O backend nunca participa do transporte de mídia.
 
 ---
 
-2. Automação da Timeline Infinita (AutomationService.java)
-Um processo em background (@Scheduled) roda constantemente vigiando a tabela de programação. Se o robô detectar que a grade possui uma janela de segurança menor do que 24 horas à frente, ele reconstrói a escala automaticamente. A programação é gerada intercalando um catálogo de músicas, vinhetas, piadas e espaços publicitários, usando queries nativas randômicas do PostgreSQL:
+## Core Backend: Inteligência e Resiliência
 
-@Scheduled(fixedDelay = 60000, initialDelay = 5000)
-public void verificarEReabastecerGrade() {
-    LocalDateTime agora = LocalDateTime.now();
-    LocalDateTime janelaFim = agora.plusHours(24);
+### 1. Sincronização de Timezone — `GradeService.java`
 
-    if (gradeRepository.count() == 0 || !gradeRepository.existsSlotNaJanela(agora, janelaFim)) {
-        gerarNovoBloco();
+O ponto mais sensível de todo o sistema é o cálculo do ponteiro de tempo. Um desvio de timezone entre o servidor e o cliente produziria um seek incorreto, quebrando a ilusão de transmissão ao vivo.
+
+A solução centraliza toda a lógica temporal no fuso horário de Brasília (`America/Sao_Paulo`) e converte para Epoch Milliseconds antes de qualquer aritmética. Epoch é um valor absoluto, sem ambiguidade de timezone, o que torna a comparação com o relógio do cliente segura mesmo que ele esteja em outro fuso.
+
+```java
+ZoneId ZONE_BRT = ZoneId.of("America/Sao_Paulo");
+
+public NowPlayingDTO getNowPlaying() {
+    long nowEpoch = ZonedDateTime.now(ZONE_BRT).toInstant().toEpochMilli();
+
+    GradeSlot slot = repository.findActiveSlot(nowEpoch)
+        .orElseThrow(() -> new NoActiveSlotException("Grade sem cobertura para o instante atual."));
+
+    long elapsedMs  = nowEpoch - slot.getStartEpoch();
+    long seekSeconds = elapsedMs / 1000;
+
+    return new NowPlayingDTO(slot.getMediaUrl(), seekSeconds, slot.getTitle());
+}
+```
+
+O cliente recebe `seekSeconds` e aplica `audioElement.currentTime = seekSeconds`, posicionando o player exatamente onde a transmissão estaria.
+
+---
+
+### 2. Automação Contínua da Grade — `AutomationService.java`
+
+A grade precisa existir antes que o cliente a consulte. Um daemon agendado avalia continuamente uma janela de 24 horas à frente e, ao detectar qualquer lacuna temporal, reconstrói os blocos faltantes.
+
+```java
+@Scheduled(fixedDelay = 60_000)
+public void fillScheduleGaps() {
+    long nowEpoch    = ZonedDateTime.now(ZONE_BRT).toInstant().toEpochMilli();
+    long horizonEpoch = nowEpoch + Duration.ofHours(24).toMillis();
+
+    List<TimeGap> gaps = gradeRepository.findGapsInRange(nowEpoch, horizonEpoch);
+
+    for (TimeGap gap : gaps) {
+        long cursor = gap.getStart();
+        while (cursor < gap.getEnd()) {
+            cursor += insertBlock(cursor); // 3 Músicas → 1 Vinheta → 1 Piada → 1 Propaganda
+        }
     }
 }
 
-3. Truncagem Cirúrgica para Intervenção Manual
-Através do endpoint administrativo /api/admin/interrupcao, o sistema permite cortar a transmissão ao vivo instantaneamente para injetar uma mídia prioritária (como um boletim ou aviso urgente). O sistema encerra o slot atual no exato milissegundo da requisição e empilha a nova mídia sem quebrar a sequência lógica das faixas posteriores.
+private long insertBlock(long startEpoch) {
+    long blockDuration = 0;
+    blockDuration += insertRandom(TipoMidia.MUSICA,     3, startEpoch + blockDuration);
+    blockDuration += insertRandom(TipoMidia.VINHETA,    1, startEpoch + blockDuration);
+    blockDuration += insertRandom(TipoMidia.PIADA,      1, startEpoch + blockDuration);
+    blockDuration += insertRandom(TipoMidia.PROPAGANDA, 1, startEpoch + blockDuration);
+    return blockDuration;
+}
+```
 
-🎨 O Cliente (PWA)
-O frontend foi desenvolvido de forma enxuta com JavaScript Vanilla, TailwindCSS e APIs nativas do navegador.
+A randomização usa queries com `ORDER BY RANDOM()` no PostgreSQL, garantindo variedade sem lógica de playlist no código da aplicação.
 
-Service Worker (sw.js): Configurado estrategicamente para armazenar em cache as imagens e estruturas visuais (App Shell), aplicando bypass completo em arquivos .mp3 para evitar gargalo de memória.
+---
 
-MediaSession API: Permite o controle da rádio diretamente pela tela de bloqueio do celular ou centrais multimídia automotivas, exibindo metadados e capas dinâmicas enviadas pelo DTO do Spring Boot.
+### 3. Intervenção Manual — Endpoint de Truncagem
 
-📦 Configuração e Execução do Projeto
-Pré-requisitos
-Java 21+
+Para inserção imediata de mídias prioritárias (boletins, mensagens urgentes), existe um endpoint administrativo que encerra cirurgicamente o slot em execução e recalcula todos os slots subsequentes para manter a grade consistente.
 
-Maven 3+
+```java
+@PostMapping("/admin/grade/truncate-and-insert")
+public ResponseEntity<Void> truncateAndInsert(@RequestBody PriorityMediaDTO dto) {
+    long nowEpoch = ZonedDateTime.now(ZONE_BRT).toInstant().toEpochMilli();
+    gradeService.truncateCurrentSlotAt(nowEpoch);
+    gradeService.insertPriorityMedia(dto, nowEpoch);
+    return ResponseEntity.noContent().build();
+}
+```
 
-Banco de Dados PostgreSQL (ou instância ativa no Supabase)
+---
 
-Variáveis de Ambiente Necessárias
-O projeto adota boas práticas de segurança (12-Factor App) e não expõe credenciais de forma estática no código. Configure as variáveis no seu ambiente de execução:
+## Cliente PWA: Diferenciais Técnicos
 
-export SUPABASE_PASSWORD="sua_senha_do_banco"
-export PORT=8080
+### Tolerância a Desvios de Latência
 
-Compilação e Build
-Para empacotar a aplicação Spring Boot gerando o arquivo executável pronto para produção (.jar), execute na raiz do diretório do backend:
+A latência de rede entre a requisição à API e a execução do seek introduz um atraso real. Para absorvê-lo sem produzir um salto perceptível no áudio, o frontend aplica um seek apenas quando o desvio ultrapassa um limiar configurado:
 
+```javascript
+const SEEK_TOLERANCE_S = 5;
+
+function syncPlayback(seekTo) {
+    const drift = Math.abs(audio.currentTime - seekTo);
+    if (drift > SEEK_TOLERANCE_S) {
+        audio.currentTime = seekTo;
+    }
+}
+```
+
+Desvios dentro da janela de 5 segundos são absorvidos naturalmente, preservando a continuidade do áudio.
+
+### Service Worker com Bypass de Mídia Pesada
+
+O `sw.js` implementa uma estratégia de cache seletiva: assets estáticos da PWA (HTML, CSS, JS, ícones) são cacheados normalmente para funcionamento offline, mas requisições para arquivos `.mp3` são sempre roteadas direto para a rede, sem passar pelo cache.
+
+Cachear áudio no Service Worker consumiria a cota de armazenamento do navegador rapidamente e produziria erros silenciosos em dispositivos com pouca memória. O bypass garante que o storage do dispositivo nunca seja sobrecarregado pelo conteúdo de mídia.
+
+### MediaSession API — Integração com Lock Screen e Sistemas Automotivos
+
+Os metadados do slot atual (título, artista, capa) são publicados na `MediaSession API` do navegador, permitindo que o sistema operacional exiba as informações corretamente na tela de bloqueio do Android e iOS, nos controles de mídia do macOS e no painel de entretenimento de veículos com suporte a Android Auto e Apple CarPlay.
+
+```javascript
+navigator.mediaSession.metadata = new MediaMetadata({
+    title:  slot.title,
+    artist: slot.artist,
+    album:  'Rádio GoMix',
+    artwork: [{ src: slot.coverUrl, sizes: '512x512', type: 'image/png' }]
+});
+```
+
+---
+
+## Configuração e Implantação
+
+O projeto segue os princípios do **Twelve-Factor App**: toda configuração sensível é injetada via variáveis de ambiente, sem nenhum segredo em código-fonte ou arquivos versionados.
+
+### Variáveis de Ambiente Requeridas
+
+| Variável              | Descrição                                                               |
+|-----------------------|-------------------------------------------------------------------------|
+| `SUPABASE_PASSWORD`   | Senha do usuário PostgreSQL do projeto Supabase                         |
+| `PORT`                | Porta HTTP em que o servidor será exposto (padrão: `8080`)              |
+
+Configure o datasource no `application.properties` (ou via variáveis do ambiente de deploy):
+
+```properties
+spring.datasource.url=jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres
+spring.datasource.username=postgres
+spring.datasource.password=${SUPABASE_PASSWORD}
+server.port=${PORT:8080}
+```
+
+### Build
+
+```bash
 mvn clean package -DskipTests
+java -jar target/gomix-*.jar
+```
 
-O arquivo gerado estará localizado em target/radiogomix-backend-0.0.1-SNAPSHOT.jar.
+O frontend (PWA estático) é hospedado independentemente no **GitHub Pages** com domínio próprio, desacoplado do ciclo de deploy do backend.
 
-📄 Licença
-Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
+---
 
-💡 Por que este README vai impressionar o Recrutador?
-Foco em Engenharia: Ele não diz apenas "fiz uma rádio". Ele aborda o projeto como uma solução de Arquitetura de Software, explicando o problema, o custo resolvido e o padrão matemático adotado.
+## Licença
 
-Uso de Termos Técnicos Certos: Termos como Decoupled Architecture, Polling nativo, 12-Factor App, Truncagem Cirúrgica e Bypass de Cache chamam muito a atenção de engenheiros de software seniores.
+Distribuído sob a licença [MIT](LICENSE).
 
-Organização: Mostra o fluxo visual em blocos e expõe os trechos mais complexos do código (GradeService e AutomationService), provando que você sabe estruturar regras de negócio robustas.
+---
 
+## Autor
+
+Desenvolvido por **Cláudio G. S. Castro** — engenheiro que acredita que a melhor solução de infraestrutura é frequentemente aquela que torna um servidor inteiro desnecessário.
