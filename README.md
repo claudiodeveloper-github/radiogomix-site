@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.jpg" alt="Rádio GoMix Logo" width="220px" style="border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" />
+</p>
+
 # 📻 Rádio GoMix
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
@@ -229,12 +233,27 @@ O frontend (PWA estático) é hospedado independentemente no **GitHub Pages** co
 
 ---
 
-## Licença
+## 👤 Autor
 
-Distribuído sob a licença [MIT](LICENSE).
+<div align="center">
+
+<img src="https://github.com/claudiodeveloper-github.png" width="100" style="border-radius: 50%;" />
+
+**Cláudio G. S. Castro**
+*Java Backend Developer em Formação*
+
+Desenvolvedor Backend em formação com foco em Java e Spring Boot.
+Construindo APIs robustas com boas práticas, aprendendo continuamente e enfrentando desafios reais.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/claudio-g-s-castro)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/claudiodeveloper-github)
+[![Gmail](https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:claudiodeveloper007@gmail.com)
+
+</div>
 
 ---
 
-## Autor
+## 📄 Licença
 
-Desenvolvido por **Cláudio G. S. Castro** — engenheiro que acredita que a melhor solução de infraestrutura é frequentemente aquela que torna um servidor inteiro desnecessário.
+Este projeto está licenciado sob a licença **MIT** — veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
