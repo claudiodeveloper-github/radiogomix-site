@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#b87333" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GoMix" />
+  <meta name="description" content="Rádio GoMix — Web Rádio com transmissão 24h" />
+
+  <title>Rádio GoMix</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link class="rounded-full" rel="apple-touch-icon" href="logo.jpg" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bronze: { DEFAULT: '#b87333', light: '#d4945a', dark: '#8b5a2b' },
+            gold: { DEFAULT: '#d4af37', light: '#f0d060', dark: '#a88c22' },
+            surface: { DEFAULT: '#111111', card: '#1a1a1a', elevated: '#242424' },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'serif'],
+            body: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --bronze: #b87333;
+      --gold: #d4af37;
+      --bg: #0a0a0a;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    .animated-bg {
+      background: radial-gradient(ellipse at 50% 0%, rgba(184, 115, 51, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+        #0a0a0a;
+      background-position: 50% 0%, 80% 80%;
+      animation: breathe 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes breathe {
+      from {
+        background-position: 50% 0%, 80% 80%;
+      }
+
+      to {
+        background-position: 50% 5%, 75% 85%;
+      }
+    }
+
+    .player-card {
+      background: linear-gradient(145deg, #1e1e1e 0%, #141414 100%);
+      border: 1px solid rgba(184, 115, 51, 0.25);
+      box-shadow:
+        0 0 0 1px rgba(184, 115, 51, 0.08),
+        0 24px 64px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .album-art {
+      aspect-ratio: 1;
+      object-fit: cover;
+      box-shadow:
+        0 8px 32px rgba(184, 115, 51, 0.3),
+        0 2px 8px rgba(0, 0, 0, 0.8);
+    }
+
+    .progress-bar {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .progress-bar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bronze);
+      box-shadow: 0 0 8px rgba(184, 115, 51, 0.6);
+      cursor: pointer;
+    }
+
+    .progress-bar::-webkit-slider-runnable-track {
+      background: linear-gradient(to right,
+          var(--bronze) 0%,
+          var(--bronze) var(--progress, 0%),
+          rgba(255, 255, 255, 0.1) var(--progress, 0%));
+      border-radius: 2px;
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, var(--bronze), var(--gold));
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 20px rgba(184, 115, 51, 0.4);
+    }
+
+    .btn-play:active {
+      transform: scale(0.94);
+      box-shadow: 0 2px 10px rgba(184, 115, 51, 0.3);
+    }
+
+    .badge-no-ar .dot {
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+      }
+    }
+
+    .ticker-wrap {
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .ticker-text {
+      display: inline-block;
+    }
+
+    .ticker-text.overflow {
+      animation: ticker 12s linear infinite;
+    }
+
+    @keyframes ticker {
+      0% {
+        transform: translateX(0);
+      }
+
+      30% {
+        transform: translateX(0);
+      }
+
+      75% {
+        transform: translateX(calc(-100% + 200px));
+      }
+
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .eq-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to top, var(--bronze), var(--gold));
+      transform-origin: bottom;
+    }
+
+    .playing .eq-bar:nth-child(1) {
+      animation: eq 0.8s ease-in-out infinite alternate;
+    }
+
+    .playing .eq-bar:nth-child(2) {
+      animation: eq 0.6s ease-in-out 0.2s infinite alternate;
+    }
+
+    .playing .eq-bar:nth-child(3) {
+      animation: eq 1.0s ease-in-out 0.1s infinite alternate;
+    }
+
+    .playing .eq-bar:nth-child(4) {
+      animation: eq 0.7s ease-in-out 0.3s infinite alternate;
+    }
+
+    @keyframes eq {
+      from {
+        transform: scaleY(0.2);
+      }
+
+      to {
+        transform: scaleY(1.0);
+      }
+    }
+
+    .paused .eq-bar {
+      animation: none;
+      transform: scaleY(0.2);
+    }
+
+    .toast {
+      transition: all 0.3s ease;
+      transform: translateY(100px);
+      opacity: 0;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body class="animated-bg text-white font-body select-none">
+
+  <div class="min-h-dvh flex flex-col items-center justify-center px-4 py-8">
+
+    <header class="text-center mb-8">
+      <p class="text-bronze text-xs tracking-[0.3em] uppercase font-medium mb-1">Web Rádio</p>
+      <h1 class="font-display text-4xl font-bold text-white">
+        Go<span class="text-bronze">Mix</span>
+      </h1>
+    </header>
+
+    <main class="w-full max-w-sm player-card rounded-3xl p-6 flex flex-col gap-5">
+      <div class="relative">
+        <img id="albumArt" src="logo.jpg" alt="Capa do álbum" class="album-art w-full rounded-2xl" />
+        <div
+          class="badge-no-ar absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+          <span class="dot w-2 h-2 rounded-full bg-bronze flex-shrink-0"></span>
+          <span id="statusBadge" class="text-xs text-bronze font-medium">No Ar</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="equalizer" class="flex items-end gap-0.5 h-5 flex-shrink-0 paused">
+          <div class="eq-bar h-2"></div>
+          <div class="eq-bar h-4"></div>
+          <div class="eq-bar h-3"></div>
+          <div class="eq-bar h-5"></div>
+        </div>
+
+        <div class="flex-1 overflow-hidden">
+          <div class="ticker-wrap">
+            <p id="trackTitle" class="ticker-text font-display font-bold text-lg leading-tight text-white">
+              Carregando...
+            </p>
+          </div>
+          <p id="trackArtist" class="text-sm text-gray-400 truncate mt-0.5">Aguarde</p>
+        </div>
+      </div>
+
+      <div>
+        <input type="range" id="progressBar" class="progress-bar" min="0" max="100" value="0" disabled
+          aria-label="Progresso da faixa" />
+        <div class="flex justify-between text-xs text-gray-500 mt-1.5">
+          <span id="timeElapsed">0:00</span>
+          <span id="timeDuration">0:00</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center gap-4">
+        <button id="btnMute" onclick="toggleMute()" class="p-2 text-gray-400 hover:text-white transition-colors"
+          aria-label="Mudo/Som">
+          <svg id="iconVolume" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M15.536 8.464a5 5 0 010 7.072M12 6v12M8 9l-3 3H2v0h3l3 3" />
+            <path id="volumePath" stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+          </svg>
+        </button>
+
+        <button id="btnPlay" onclick="togglePlay()"
+          class="btn-play w-16 h-16 rounded-full flex items-center justify-center" aria-label="Play/Pause">
+          <svg id="iconPlay" xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-black" fill="currentColor"
+            viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          <svg id="iconPause" xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-black hidden" fill="currentColor"
+            viewBox="0 0 24 24">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        </button>
+
+        <div class="flex items-center gap-2">
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)"
+            class="w-16 h-1 rounded-full accent-bronze cursor-pointer bg-bronze" style="background: var(--bronze);"
+            aria-label="Volume" />
+        </div>
+      </div>
+
+      <div class="text-center">
+        <p class="text-xs text-gray-600">
+          Sincronização Faux-Live · atualiza em <span id="countdownSync">10</span>s
+        </p>
+      </div>
+    </main>
+
+    <footer class="mt-8 text-center">
+      <p class="text-xs text-gray-700">Rádio GoMix &copy; 2025 · Transmissão 24h</p>
+    </footer>
+  </div>
+
+  <div id="toast"
+    class="toast fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface-elevated border border-bronze/30 rounded-xl px-4 py-2.5 text-sm text-white shadow-lg z-50">
+    <span id="toastMsg"></span>
+  </div>
+
+  <audio id="radioPlayer" preload="auto" crossorigin="anonymous"></audio>
+
+  <script>
+    const API_BASE = 'https://kiwi-elf-corrode.ngrok-free.dev';
+    const SYNC_INTERVAL_MS = 10_000;
+    const SEEK_TOLERANCE_S = 2;
+
+    const state = {
+      isPlaying: false,
+      isMuted: false,
+      currentUrl: null,
+      syncTimer: null,
+      countdownTimer: null,
+      countdownValue: 10,
+    };
+
+    const player = document.getElementById('radioPlayer');
+    const albumArt = document.getElementById('albumArt');
+    const trackTitle = document.getElementById('trackTitle');
+    const trackArtist = document.getElementById('trackArtist');
+    const progressBar = document.getElementById('progressBar');
+    const timeElapsed = document.getElementById('timeElapsed');
+    const timeDuration = document.getElementById('timeDuration');
+    const statusBadge = document.getElementById('statusBadge');
+    const equalizer = document.getElementById('equalizer');
+    const iconPlay = document.getElementById('iconPlay');
+    const iconPause = document.getElementById('iconPause');
+    const countdownSync = document.getElementById('countdownSync');
+    const volumeSlider = document.getElementById('volumeSlider');
+
+    // Força a inicialização com volume máximo no motor e na UI
+    player.volume = 1.0;
+    if (volumeSlider) volumeSlider.value = 1.0;
+
+    async function sincronizarComServidor() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/radio/no-ar`, {
+          cache: 'no-store',
+          headers: new Headers({ 'ngrok-skip-browser-warning': 'true' })
+        });
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const dados = await resp.json();
+
+        if (!dados.urlAudio) {
+          atualizarUIForaDaGrade();
+          return;
+        }
+
+        atualizarUI(dados);
+
+        if (state.isPlaying) {
+          await sincronizarAudio(dados);
+        }
+
+        agendarSyncNoFim(dados.fimTimestamp);
+      } catch (erro) {
+        console.warn('[GoMix] Falha no sync:', erro.message);
+      }
+    }
+
+    async function sincronizarAudio(dados) {
+      const novaUrl = dados.urlAudio;
+      const segundoAlvo = dados.segundoAtual || 0;
+
+      if (player.src !== novaUrl && player.currentSrc !== novaUrl) {
+        player.src = novaUrl;
+        state.currentUrl = novaUrl;
+
+        await new Promise((resolve) => {
+          player.addEventListener('loadedmetadata', resolve, { once: true });
+          player.load();
+        });
+
+        player.currentTime = segundoAlvo;
+        player.play().catch(onAutoplayBloqueado);
+        return;
+      }
+
+      const desvio = Math.abs(player.currentTime - segundoAlvo);
+      if (desvio > SEEK_TOLERANCE_S) {
+        console.log(`[GoMix] Seek corretivo: desvio de ${desvio.toFixed(1)}s → ajustando para ${segundoAlvo}s`);
+        player.currentTime = segundoAlvo;
+      }
+
+      if (player.paused) {
+        player.play().catch(onAutoplayBloqueado);
+      }
+    }
+
+    function agendarSyncNoFim(fimTimestamp) {
+      if (!fimTimestamp || fimTimestamp <= 0) return;
+      const msAteOFim = fimTimestamp - Date.now();
+      const msAteSync = msAteOFim - 500;
+      if (msAteSync > 0 && msAteSync < SYNC_INTERVAL_MS) {
+        setTimeout(sincronizarComServidor, msAteSync);
+      }
+    }
+
+    player.addEventListener('ended', () => {
+      console.log('[GoMix] Faixa terminou. Pulando...');
+      sincronizarComServidor();
+    });
+
+    player.addEventListener('timeupdate', () => {
+      // Se a duração for infinita ou indisponível (caso de streaming contínuo)
+      if (!player.duration || isNaN(player.duration) || player.duration === Infinity) {
+        progressBar.value = 100;
+        progressBar.style.setProperty('--progress', `100%`);
+        timeElapsed.textContent = "AO VIVO";
+        timeDuration.textContent = "FAUX-LIVE";
+        return;
+      }
+      const progresso = (player.currentTime / player.duration) * 100;
+      progressBar.value = progresso;
+      progressBar.style.setProperty('--progress', `${progresso}%`);
+      timeElapsed.textContent = formatarTempo(player.currentTime);
+      timeDuration.textContent = formatarTempo(player.duration);
+    });
+
+    player.addEventListener('play', () => atualizarBotaoPlay(true));
+    player.addEventListener('pause', () => atualizarBotaoPlay(false));
+
+    function togglePlay() {
+      if (state.isPlaying) {
+        player.pause();
+        state.isPlaying = false;
+        clearInterval(state.syncTimer);
+        clearInterval(state.countdownTimer);
+        atualizarBotaoPlay(false);
+      } else {
+        state.isPlaying = true;
+        sincronizarComServidor();
+        iniciarSyncPeriodico();
+        atualizarBotaoPlay(true);
+      }
+    }
+
+    function toggleMute() {
+      state.isMuted = !state.isMuted;
+      player.muted = state.isMuted;
+      document.getElementById('iconVolume').style.opacity = state.isMuted ? '0.3' : '1';
+    }
+
+    function setVolume(valor) {
+      player.volume = parseFloat(valor);
+      player.muted = false;
+      state.isMuted = false;
+    }
+
+    function iniciarSyncPeriodico() {
+      clearInterval(state.syncTimer);
+      clearInterval(state.countdownTimer);
+
+      state.syncTimer = setInterval(sincronizarComServidor, SYNC_INTERVAL_MS);
+      state.countdownValue = SYNC_INTERVAL_MS / 1000;
+
+      state.countdownTimer = setInterval(() => {
+        state.countdownValue--;
+        countdownSync.textContent = Math.max(0, state.countdownValue);
+        if (state.countdownValue <= 0) state.countdownValue = SYNC_INTERVAL_MS / 1000;
+      }, 1000);
+    }
+
+    function atualizarUI(dados) {
+      trackTitle.textContent = dados.titulo || 'Rádio GoMix';
+      tickerCheck();
+      trackArtist.textContent = dados.artista || 'GoMix';
+      albumArt.src = dados.urlCapa || 'logo.jpg';
+      albumArt.alt = `Capa: ${dados.titulo}`;
+
+      const noAr = dados.statusTransmissao === 'No Ar' || dados.statusTransmissao === undefined;
+      statusBadge.textContent = dados.statusTransmissao || 'No Ar';
+      statusBadge.style.color = noAr ? '#b87333' : '#6b7280';
+      document.querySelector('.dot').style.background = noAr ? '#b87333' : '#6b7280';
+
+      progressBar.max = dados.duracaoTotal || 100;
+      atualizarMediaSession(dados);
+    }
+
+    function atualizarUIForaDaGrade() {
+      trackTitle.textContent = 'Fora do Ar';
+      trackArtist.textContent = 'Aguardando programação...';
+      statusBadge.textContent = 'Fora do Ar';
+      statusBadge.style.color = '#6b7280';
+    }
+
+    function atualizarBotaoPlay(tocando) {
+      iconPlay.classList.toggle('hidden', tocando);
+      iconPause.classList.toggle('hidden', !tocando);
+      equalizer.classList.toggle('playing', tocando);
+      equalizer.classList.toggle('paused', !tocando);
+    }
+
+    function tickerCheck() {
+      const hasOverflow = trackTitle.scrollWidth > trackTitle.parentElement.offsetWidth;
+      trackTitle.classList.toggle('overflow', hasOverflow);
+    }
+
+    function atualizarMediaSession(dados) {
+      if (!('mediaSession' in navigator)) return;
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: dados.titulo || 'Rádio GoMix',
+        artist: dados.artista || 'GoMix',
+        album: 'Rádio GoMix — Ao Vivo',
+        artwork: [{ src: dados.urlCapa || 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }],
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', sincronizarComServidor);
+      navigator.mediaSession.setActionHandler('play', () => { if (!state.isPlaying) togglePlay(); });
+      navigator.mediaSession.setActionHandler('pause', () => { if (state.isPlaying) togglePlay(); });
+    }
+
+    function formatarTempo(segundos) {
+      if (!segundos || isNaN(segundos)) return '0:00';
+      const m = Math.floor(segundos / 60);
+      const s = Math.floor(segundos % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function mostrarToast(mensagem, duracao = 3000) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = mensagem;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duracao);
+    }
+
+    function onAutoplayBloqueado(erro) {
+      console.warn('[GoMix] Autoplay bloqueado:', erro.message);
+      mostrarToast('Toque em ▶ para iniciar a transmissão');
+      state.isPlaying = false;
+      atualizarBotaoPlay(false);
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          console.log('[GoMix] Service Worker registrado:', reg.scope);
+        } catch (erro) {
+          console.warn('[GoMix] Falha ao registrar SW:', erro);
+        }
+      });
+    }
+
+    (async function init() {
+      console.log('[GoMix] Inicializando Rádio GoMix...');
+      try {
+        const resp = await fetch(`${API_BASE}/api/radio/no-ar`, {
+          cache: 'no-store',
+          headers: new Headers({ 'ngrok-skip-browser-warning': 'true' })
+        });
+        if (resp.ok) {
+          const dados = await resp.json();
+          if (dados.urlAudio) atualizarUI(dados);
+        }
+      } catch (e) {
+        console.warn('[GoMix] Falha na inicialização:', e.message);
+      }
+    })();
+  </script>
+</body>
+
+</html>
